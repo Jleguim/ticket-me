@@ -1,0 +1,29 @@
+{
+  "name": "ticket-me",
+  "version": "0.0.1",
+  "description": "TicketMe bot for Discord.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "nodemon ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jleguim/ticket-me.git"
+  },
+  "keywords": [
+    "Discord",
+    "DJS",
+    "Discord.js"
+  ],
+  "author": "Jleguim",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Jleguim/ticket-me/issues"
+  },
+  "homepage": "https://github.com/Jleguim/ticket-me#readme",
+  "dependencies": {
+    "discord.js": "^12.5.3",
+    "dotenv": "^9.0.0",
+    "mongoose": "^5.12.7"
+  }
+}
