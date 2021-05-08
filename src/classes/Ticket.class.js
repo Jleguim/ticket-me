@@ -2,94 +2,105 @@ const Discord = require('discord.js')
 const mongoose = require('mongoose')
 const client = require('../client')
 
-const Panel = require('./Panel.class')
-
 class Ticket {
-
     /**
-     * Constructor function
-     * @param {Panel} parent 
-     * @param {string[]} roles 
+     * A ticket
+     * @param {Panel} panelParent 
      */
-    constructor(parent, roles) {
-        this.roles = roles
-        this.parent = parent
-
-        // this.controls = {
-        //     '❌': () => console.log('Close')
-        // }
-
-        this.channel_id = null
+    constructor(panelParent) {
+        this.parent = null
+        this.channel = null
         this.doc_id = null
-        this._lastMessage = null
+        this._message = null
+
+        // Needa check this somehow without making a circular dep
+        this.parent = panelParent
     }
 
-    async createTicket(author) {
-        const { getChannel } = this.parent
+    /**
+    * Makes an object with the instance's data for Mongo.
+    * @returns Object
+    */
+    toJSON() {
+        return {
+            parent: this.parent.doc_id,
+            channel: this.channel.id,
+            _message: this.message
+        }
+    }
+
+    /**
+     * Saves the instance's data to Mongo and returns the data.
+     * @returns Object
+     */
+    // async save() {
+    //     var tObj = this.toJSON()
+    //     var t = undefined
+
+    //     if (!this.doc_id) t = new PnelModel(tObj)
+    //     else t = await PnelModel.findByIdAndUpdate(this.doc_id, tObj)
+
+    //     this.doc_id = t.id
+
+    //     await t.save()
+    //     return t
+    // }
+
+    /**
+     * Makes an instance of Ticket using data from Mongo.
+     * @param {Object} obj 
+     * @returns Panel
+     */
+    // static revive({ channel, category, options, _message, id }) {
+    //     var p = new Panel(channel, category, options)
+    //     p._message = _message
+    //     p.doc_id = id
+
+    //     return p
+    // }
+
+    async exec(author) {
+        const getChannel = this.parent.getChannel
 
         var embed = this.createEmbed()
-        var category = await getChannel(this.parent.category_id)
+        var category = (this.parent.category instanceof Discord.CategoryChannel) ? this.parent.category : getChannel(this.parent.category)
 
-        var channel = await this.createChannel(category)
+        var channelOptions = { parent: category, type: 'text' }
+        var channel = await category.guild.channels.create('ticket', channelOptions)
         var message = await channel.send(embed)
 
-        this._lastMessage = message.id
-        this.addUser(channel, author)
+        this.channel = channel
+        this._message = message.id
+
+        this.removePermission(this.channel.guild.roles.everyone)
+        this.addPermission(author)
+        this.parent.roles.forEach(role => this.addPermission(role))
     }
 
+    /**
+    * Creates an embed from the parent panel options.
+    * @returns Embed
+    */
     createEmbed() {
-        const embed = new Discord.MessageEmbed()
-            .setTitle('Ticket')
-            .setDescription('Help will be here shortly.')
-            .setColor('GREEN')
+        var { title, message, color } = this.parent.options.tEmbed
 
-        return embed
+        return new Discord.MessageEmbed()
+            .setTitle(title)
+            .setColor(color)
+            .setFooter(message)
     }
 
-    /**
-     * Crea el canal en la categoria especificada
-     * @param {Discord.CategoryChannel} category 
-     */
-    async createChannel(category) {
-        const { guild } = category
-
-        var channel = await guild.channels.create('ticket', { parent: category, type: 'text' })
-        this.channel_id = channel.id
-
-        await this.changePermissions(channel)
-
-        return channel
-    }
-
-    /**
-     * Cambia los permisos de un canal
-     * @param {Discord.TextChannel} channel 
-     */
-    async changePermissions(channel) {
-        await channel.updateOverwrite(channel.guild.roles.everyone, {
+    removePermission(id) {
+        this.channel.updateOverwrite(id, {
             VIEW_CHANNEL: false,
             SEND_MESSAGES: false
         })
-
-        this.roles.forEach(async (role) => {
-            await channel.updateOverwrite(role, {
-                VIEW_CHANNEL: true,
-                SEND_MESSAGES: true
-            })
-        })
     }
 
-    async addUser(channel, user) {
-        await channel.updateOverwrite(user, {
+    addPermission(id) {
+        this.channel.updateOverwrite(id, {
             VIEW_CHANNEL: true,
             SEND_MESSAGES: true
-        })
-    }
-
-    async removeUser(channel, user) {
-        await channel.updateOverwrite(user, {
-            VIEW_CHANNEL: false,
-            SEND_MESSAGES: false
         })
     }
 }

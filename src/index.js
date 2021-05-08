@@ -11,17 +11,18 @@ mongoose.connect(process.env.MONGO, { useNewUrlParser: true, useUnifiedTopology:
 
     fs.readdirSync('./src/models/').forEach(file => require(`./models/${file}`))
 
-    const panels = require('./panels')
 
     client.on('ready', async () => {
         console.log('Ta ready en ' + client.guilds.cache.size)
 
-        // Revivir Panels
-        const ps = await panels.loadPanels()
-        ps.forEach(async (panel) => {
-            const channel = await client.channels.fetch(panel.channel_id)
-            const message = await channel.messages.fetch(panel._lastMessage)
-            panel.attachCollector(message)
+        // Revive Panels
+        const Panel = require('./classes/Panel.class')
+        const PanelModel = mongoose.models.Panel
+
+        const panels = await PanelModel.find()
+        panels.forEach(async (doc) => {
+            var panel = Panel.revive(doc)
+            await panel.exec()
         })
     })
 

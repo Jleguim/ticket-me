@@ -2,20 +2,20 @@ const Discord = require('discord.js')
 const client = require('../client')
 
 const Form = require('../classes/Form.class')
-const { createPanel, getPanels } = require('../panels')
+const Panel = require('../classes/Panel.class')
 
 async function run(message, args) {
     var questions = [
-        // {
-        //     q: 'Where do you want the panel embed to be sent? (channel id)',
-        //     err: 'Please try again with a valid channel ID.',
-        //     f: validate('text')
-        // },
-        // {
-        //     q: 'Where do you want the tickets to be made? (category id)',
-        //     err: 'Please try again with a valid category ID.',
-        //     f: validate('category')
-        // },
+        {
+            q: 'Where do you want the panel embed to be sent? (channel id)',
+            err: 'Please try again with a valid channel ID.',
+            f: validate('text')
+        },
+        {
+            q: 'Where do you want the tickets to be made? (category id)',
+            err: 'Please try again with a valid category ID.',
+            f: validate('category')
+        },
         {
             q: 'Tag the roles that will have access to view tickets created using this panel. (@Role)',
             err: 'Please try again.',
@@ -39,17 +39,13 @@ async function run(message, args) {
     var form = new Form(message.author, message.channel, questions)
     form.exec()
 
-    form.callback = async (answers, toDelete) => {
-        console.log(answers)
+    form.callback = async ([channel, category, roles], messagesToDelete) => {
+        const newPanel = new Panel(channel, category, roles)
+        await newPanel.exec()
+
+        message.channel.send('Created a panel on <#' + channel + '>')
+        message.channel.bulkDelete(messagesToDelete)
     }
-
-    // form.callback = async ([channel, category], messagesToDelete) => {
-    //     const newPanel = createPanel(channel.id, category.id)
-    //     await newPanel.sendPanel()
-
-    //     message.channel.send('Created a panel on <#' + channel + '>')
-    //     message.channel.bulkDelete(messagesToDelete)
-    // }
 }
 
 module.exports = { run }

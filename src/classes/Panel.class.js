@@ -4,108 +4,141 @@ const client = require('../client')
 
 const Ticket = require('./Ticket.class')
 
-const PanelOptions = require('./PanelOptions.class')
 const PanelModel = mongoose.models.Panel
 
+var defaultOptions = {
+    pEmbed: {
+        title: 'My panel',
+        color: 'BLUE',
+        message: 'React with $EMOJI to make a ticket.'
+    },
+    tEmbed: {
+        title: 'Ticket',
+        color: 'GREEN',
+        message: 'Support will arrive soon.'
+    },
+    emoji: '📧'
+}
+
 class Panel {
-    constructor(channel_id, category_id, options = new PanelOptions()) {
-        this.channel_id = channel_id
-        this.category_id = category_id
-        this.options = options
+    /**
+     * A ticket panel
+     * @param {string | Discord.TextChannel} channelResolvable 
+     * @param {srting | Discord.CategoryChannel} categoryResolvable 
+     * @param {string | Discord.Role} roles
+     * @param {defaultOptions} options 
+     */
+    constructor(channelResolvable, categoryResolvable, roles = [], options = defaultOptions) {
+        this.channel = undefined
+        this.category = undefined
+        this.roles = roles
+        this.options = undefined
+        this.doc_id = undefined
+        this._message = undefined
 
-        this.doc_id = null
-        this._lastMessage = null
+        if (channelResolvable instanceof Discord.TextChannel) this.channel = channelResolvable
+        else if (channelResolvable instanceof String) {
+            client.channels.fetch(channelResolvable).then(ch => {
+                this.channel = ch
+            })
+        } else throw 'Invalid channelResolvable'
+
+        if (categoryResolvable instanceof Discord.CategoryChannel) this.category = categoryResolvable
+        else if (channelResolvable instanceof String) {
+            client.channels.fetch(channelResolvable).then(ch => {
+                this.category = ch
+            })
+        } else throw 'Invalid categoryResolvable'
+
+        if (options instanceof Object) this.options = options
+        else throw 'Invalid options'
     }
 
-    set lastMessage(v) {
-        this._lastMessage = v
-
-        PanelModel.findById(this.doc_id, (err, p) => {
-            if (err) throw err
-            p._lastMessage = v
-            p.save()
-        })
-    }
-
-    static revive(element) {
-        var { channel_id, category_id, options, _lastMessage } = element
-
-        var po = PanelOptions.revive(options)
-        var p = new Panel(channel_id, category_id, po)
-
-        p._lastMessage = _lastMessage
-        p.doc_id = element.id
-
-        return p
-    }
-
+    /**
+     * Makes an object with the instance's data for Mongo.
+     * @returns Object
+     */
     toJSON() {
         return {
-            channel_id: this.channel_id,
-            category_id: this.category_id,
-            options: this.options.toJSON(),
+            channel: (this.channel instanceof Discord.TextChannel) ? this.channel.id : this.channel,
+            category: (this.category instanceof Discord.CategoryChannel) ? this.category.id : this.category,
+            roles: this.roles,
+            options: this.options,
 
-            _lastMessage: this._lastMessage
+            _message: this.message
         }
     }
 
     /**
-     * Manda el mensaje con su ReactionCollector
+     * Saves the instance's data to Mongo and returns the data.
+     * @returns Object
      */
-    async sendPanel() {
-        const embed = this.createEmbed()
-        const channel = await this.getChannel(this.channel_id)
+    async save() {
+        var pObj = this.toJSON()
+        var p = undefined
 
-        const message = await channel.send(embed)
-        message.react(this.options.emoji)
+        if (!this.doc_id) p = new PanelModel(pObj)
+        else p = await PanelModel.findByIdAndUpdate(this.doc_id, pObj)
 
-        this.lastMessage = message.id
+        this.doc_id = p.id
 
-        this.attachCollector(message)
+        await p.save()
+        return p
     }
 
     /**
-     * Busca el canal por su ID
-     * @param {string} id
-     * @returns {Discord.Channel} channel
+     * Makes an instance of Panel using data from Mongo.
+     * @param {Object} obj 
+     * @returns Panel
      */
-    async getChannel(id) {
-        var channel = await client.channels.fetch(id)
-        if (!channel) throw err
-        else return channel
+    static revive({ channel, category, options, _message, id }) {
+        var p = new Panel(channel, category, options)
+        p._message = _message
+        p.doc_id = id
+
+        return p
     }
 
     /**
-     * Crea el MessageEmbed
-     * @returns {Discord.MessageEmbed} embed
+     * Executes the panel's functionality
      */
-    createEmbed() {
-        const embed = new Discord.MessageEmbed()
-            .setTitle(this.options.embed.title)
-            .setDescription(this.options.embed.description)
-            .setColor(this.options.embed.color)
+    async exec() {
+        var embed = this.createEmbed()
+        var channel = (this.channel instanceof Discord.TextChannel) ? this.channel : this.getChannel(this.channel)
+        var message = await channel.send(embed)
 
-        return embed
-    }
+        this._message = message.id
+        await message.react(this.options.emoji)
+        await this.save()
 
-    /**
-     * Le pone un ReactionCollector al mensaje
-     * @param {Discord.Message} message 
-     */
-    attachCollector(message) {
-        const collector = new Discord.ReactionCollector(message, (r, u) => !u.bot, {})
-
+        const collector = new Discord.ReactionCollector(message, (r, u) => !u.bot)
         collector.on('collect', async (reaction, user) => {
-            // const category = await this.getChannel(this.category_id)
             if (reaction.emoji.name == this.options.emoji) {
-                // console.log(`${user.username} created a ticket.`)
-
-                var myTicket = new Ticket(this, [])
-                await myTicket.createTicket(user)
+                var ticket = new Ticket(this)
+                await ticket.exec(user)
             }
 
             reaction.users.remove(user.id)
         })
+    }
+
+    /**
+     * Creates an embed from the panel options.
+     * @returns Embed
+     */
+    createEmbed() {
+        var { title, message, color } = this.options.pEmbed
+
+        return new Discord.MessageEmbed()
+            .setTitle(title)
+            .setColor(color)
+            .setFooter(message.replace('$EMOJI', this.options.emoji))
+    }
+
+    async getChannel(id) {
+        var channel = await client.channels.fetch(id)
+        if (!channel) throw err
+        else return channel
     }
 }
 

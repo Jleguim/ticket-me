@@ -4,19 +4,25 @@ const Discord = require('discord.js')
 const ObjectId = mongoose.SchemaTypes.ObjectId
 
 const PanelSchema = new mongoose.Schema({
-    channel_id: String,
-    category_id: String,
+    channel: String,
+    category: String,
+    roles: [String],
 
     options: {
-        embed: {
+        pEmbed: {
             title: String,
             color: String,
-            description: String
+            message: String
+        },
+        tEmbed: {
+            title: String,
+            color: String,
+            message: String
         },
         emoji: String
     },
 
-    _lastMessage: String
+    _message: String
 })
 
 module.exports = mongoose.model('Panel', PanelSchema)
