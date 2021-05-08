@@ -6,7 +6,7 @@ const fs = require('fs')
 
 const client = require('./client')
 
-mongoose.connect(process.env.MONGO, { useNewUrlParser: true, useUnifiedTopology: true }, (err) => {
+mongoose.connect(process.env.MONGO, { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: true }, (err) => {
     if (err) throw err
 
     fs.readdirSync('./src/models/').forEach(file => require(`./models/${file}`))
@@ -21,8 +21,7 @@ mongoose.connect(process.env.MONGO, { useNewUrlParser: true, useUnifiedTopology:
 
         const panels = await PanelModel.find()
         panels.forEach(async (doc) => {
-            var panel = Panel.revive(doc)
-            await panel.exec()
+            Panel.revive(doc)
         })
     })
 

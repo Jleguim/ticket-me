@@ -39,7 +39,7 @@ async function run(message, args) {
     var form = new Form(message.author, message.channel, questions)
     form.exec()
 
-    form.callback = async ([channel, category, roles], messagesToDelete) => {
+    form.callback = async ([channel, category, roles], messagesToDelete) => {        
         const newPanel = new Panel(channel, category, roles)
         await newPanel.exec()
 

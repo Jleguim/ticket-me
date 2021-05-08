@@ -1,5 +1,4 @@
 const mongoose = require('mongoose')
-const Discord = require('discord.js')
 
 const ObjectId = mongoose.SchemaTypes.ObjectId
 

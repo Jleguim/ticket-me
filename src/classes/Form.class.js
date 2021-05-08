@@ -1,5 +1,4 @@
-const Discord = require("discord.js")
-const { MessageCollector } = require("discord.js")
+const Discord = require('discord.js')
 
 class Form {
     constructor(target, channel, questions = [{ q: 'Papi que, Moto?', err, f }]) {
@@ -11,7 +10,7 @@ class Form {
         this.target = target
         this.channel = channel
 
-        this.collector = new MessageCollector(this.channel, m => m.author.id == this.target.id, { time: 60000 })
+        this.collector = new Discord.MessageCollector(this.channel, m => m.author.id == this.target.id, { time: 60000 })
     }
 
     set callback(cb) {

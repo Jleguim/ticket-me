@@ -37,15 +37,15 @@ class Panel {
         this._message = undefined
 
         if (channelResolvable instanceof Discord.TextChannel) this.channel = channelResolvable
-        else if (channelResolvable instanceof String) {
+        else if ((typeof channelResolvable) == 'string') {
             client.channels.fetch(channelResolvable).then(ch => {
                 this.channel = ch
             })
         } else throw 'Invalid channelResolvable'
 
         if (categoryResolvable instanceof Discord.CategoryChannel) this.category = categoryResolvable
-        else if (channelResolvable instanceof String) {
-            client.channels.fetch(channelResolvable).then(ch => {
+        else if ((typeof categoryResolvable) == 'string') {
+            client.channels.fetch(categoryResolvable).then(ch => {
                 this.category = ch
             })
         } else throw 'Invalid categoryResolvable'
@@ -65,7 +65,7 @@ class Panel {
             roles: this.roles,
             options: this.options,
 
-            _message: this.message
+            _message: this._message
         }
     }
 
@@ -91,10 +91,15 @@ class Panel {
      * @param {Object} obj 
      * @returns Panel
      */
-    static revive({ channel, category, options, _message, id }) {
-        var p = new Panel(channel, category, options)
+    static async revive({ channel, category, roles, options, _message, id }) {
+        var p = new Panel(channel, category, roles, options)
         p._message = _message
         p.doc_id = id
+
+        setTimeout(async () => {
+            var message = await p.channel.messages.fetch(p._message)
+            p.attachCollector(message)
+        }, 500)
 
         return p
     }
@@ -111,6 +116,10 @@ class Panel {
         await message.react(this.options.emoji)
         await this.save()
 
+        this.attachCollector(message)
+    }
+
+    attachCollector(message) {
         const collector = new Discord.ReactionCollector(message, (r, u) => !u.bot)
         collector.on('collect', async (reaction, user) => {
             if (reaction.emoji.name == this.options.emoji) {
